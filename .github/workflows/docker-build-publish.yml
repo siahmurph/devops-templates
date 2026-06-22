@@ -52,6 +52,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
           tags: |
+            type=raw,value=latest
             type=sha,format=short
 
       - name: Build Docker image
@@ -59,20 +60,20 @@ jobs:
         with:
           context: ${{ inputs.context_path }}
           file: ${{ inputs.dockerfile_path }}
-          push: false # Build first to scan
-          load: true # Load to local daemon for Trivy scanning
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
-          format: 'table'
-          exit-code: '1'
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:latest
+          format: table
+          exit-code: "1"
           ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
       - name: Push Docker image
         uses: docker/build-push-action@v5
