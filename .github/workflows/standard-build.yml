@@ -26,6 +26,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get short commit SHA
+        id: vars
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -42,12 +46,14 @@ jobs:
           context: ${{ inputs.build_context }}
           file: ${{ inputs.dockerfile_path }}
           load: true
-          tags: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:latest
+          tags: |
+            ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:latest
+            ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ steps.vars.outputs.short_sha }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:latest'
+          image-ref: '${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ steps.vars.outputs.short_sha }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -59,4 +65,6 @@ jobs:
           context: ${{ inputs.build_context }}
           file: ${{ inputs.dockerfile_path }}
           push: true
-          tags: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:latest
+          tags: |
+            ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:latest
+            ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ steps.vars.outputs.short_sha }}
