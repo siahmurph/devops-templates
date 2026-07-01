@@ -1,8 +1,7 @@
 name: Security Audit
 
 on:
-  schedule:
-    - cron: "40 2 * * 1"
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -21,7 +20,7 @@ jobs:
     uses: siahmurph/devops-templates/.github/workflows/security-audit-and-digest.yml@v1
     with:
       registry: ghcr.io
-      image_name: sandpiper-${{ matrix.component }}
+      image_name: fido2-${{ matrix.component }}
       image_tag: latest
       run_image_scan: true
     secrets: inherit
