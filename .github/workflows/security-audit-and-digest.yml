@@ -22,6 +22,8 @@ on:
 jobs:
   audit-and-digest:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_REF: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
     permissions:
       contents: read
       packages: read
@@ -44,7 +46,7 @@ jobs:
           output: trivy-fs.sarif
           scanners: vuln,secret,misconfig
           severity: CRITICAL,HIGH,MEDIUM
-          exit-code: '0'
+          exit-code: "0"
 
       - name: Upload FS SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -64,12 +66,12 @@ jobs:
         if: ${{ inputs.run_image_scan }}
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          image-ref: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
+          image-ref: ${{ env.IMAGE_REF }}
           format: table
           output: trivy-image.txt
           scanners: vuln
           severity: CRITICAL,HIGH,MEDIUM
-          exit-code: '0'
+          exit-code: "0"
         continue-on-error: true
 
       - name: Resolve digest
@@ -77,18 +79,18 @@ jobs:
         if: ${{ inputs.run_image_scan }}
         shell: bash
         run: |
-          IMAGE="${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.image_tag }}"
-          DIGEST=$(docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          IMAGE_DIGEST_REF="${IMAGE_REF%@*}@${DIGEST}"
 
-          echo "image_ref=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "image_ref=$IMAGE_REF" >> "$GITHUB_OUTPUT"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-          echo "image_digest_ref=${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image_digest_ref=$IMAGE_DIGEST_REF" >> "$GITHUB_OUTPUT"
 
           {
             echo "## Image Digest"
-            echo "- Image: \`$IMAGE\`"
+            echo "- Image: \`$IMAGE_REF\`"
             echo "- Digest: \`$DIGEST\`"
-            echo "- Pinned: \`${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}@${DIGEST}\`"
+            echo "- Pinned: \`$IMAGE_DIGEST_REF\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload artifacts
