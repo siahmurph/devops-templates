@@ -1,0 +1,101 @@
+name: Reusable Security Audit + Digest
+
+on:
+  workflow_call:
+    inputs:
+      registry:
+        required: false
+        type: string
+        default: ghcr.io
+      image_name:
+        required: true
+        type: string
+      image_tag:
+        required: false
+        type: string
+        default: latest
+      run_image_scan:
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  audit-and-digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    outputs:
+      image_ref: ${{ steps.digest.outputs.image_ref }}
+      image_digest_ref: ${{ steps.digest.outputs.image_digest_ref }}
+      digest: ${{ steps.digest.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trivy FS scan (whole repo -> SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+
+      - name: Upload FS SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs-${{ inputs.image_name }}
+
+      - name: Log in to registry
+        if: ${{ inputs.run_image_scan }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy image scan (non-blocking)
+        if: ${{ inputs.run_image_scan }}
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.image_tag }}
+          format: table
+          output: trivy-image.txt
+          scanners: vuln
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '0'
+        continue-on-error: true
+
+      - name: Resolve digest
+        id: digest
+        if: ${{ inputs.run_image_scan }}
+        shell: bash
+        run: |
+          IMAGE="${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ inputs.image_tag }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
+
+          echo "image_ref=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "image_digest_ref=${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}@${DIGEST}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Image Digest"
+            echo "- Image: \`$IMAGE\`"
+            echo "- Digest: \`$DIGEST\`"
+            echo "- Pinned: \`${{ inputs.registry }}/${{ github.repository_owner }}/${{ inputs.image_name }}@${DIGEST}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-${{ inputs.image_name }}-${{ github.run_number }}
+          path: |
+            trivy-fs.sarif
+            trivy-image.txt
+          if-no-files-found: warn
