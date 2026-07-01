@@ -1,0 +1,30 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: '40 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+env:
+  APP_NAME: sandpiper
+
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+          - component: frontend
+    uses: siahmurph/devops-templates/.github/workflows/security-audit-and-digest.yml@v1
+    with:
+      registry: ghcr.io
+      image_name: ${{ env.APP_NAME }}-${{ matrix.component }}
+      image_tag: latest
+      run_image_scan: true
+    secrets: inherit

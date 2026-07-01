@@ -1,0 +1,62 @@
+# Keep Docker build contexts small and safe
+
+# ---- VCS ----
+.git
+.gitignore
+.gitattributes
+
+# ---- CI / docs / metadata ----
+.github/
+docs/
+README.md
+CHANGELOG.md
+LICENSE
+
+# ---- Editor / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Logs / temp ----
+*.log
+logs/
+tmp/
+temp/
+.cache/
+coverage/
+
+# ---- Secrets / env ----
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ---- Dependency / build artifacts ----
+node_modules/
+dist/
+build/
+out/
+target/
+bin/
+obj/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# ---- Test / local-only files ----
+test-results/
+playwright-report/
+*.local.*
+
+# ---- Docker compose / overrides (optional) ----
+docker-compose*.yml
+
+# ---- Keep Dockerfiles and required app files included ----
+# (No action needed unless you used broad excludes)
