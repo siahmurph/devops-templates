@@ -1,0 +1,55 @@
+name: Security Audit (on push)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api/**"
+      - "frontend/**"
+      - ".github/workflows/security-audit-consumer-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            frontend:
+              - 'frontend/**'
+
+  audit-api:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api == 'true'
+    uses: siahmurph/devops-templates/.github/workflows/security-audit-and-digest.yml@v1
+    with:
+      registry: ghcr.io
+      image_name: sandpiper-api
+      image_tag: latest
+      run_image_scan: true
+    secrets: inherit
+
+  audit-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    uses: siahmurph/devops-templates/.github/workflows/security-audit-and-digest.yml@v1
+    with:
+      registry: ghcr.io
+      image_name: sandpiper-frontend
+      image_tag: latest
+      run_image_scan: true
+    secrets: inherit
