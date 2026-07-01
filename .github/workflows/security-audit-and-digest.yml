@@ -64,7 +64,7 @@ jobs:
 
       - name: Trivy image scan (non-blocking)
         if: ${{ inputs.run_image_scan }}
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.IMAGE_REF }}
           format: table
